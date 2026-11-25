@@ -16,14 +16,15 @@ Une appli toute simple pour les personnes que le temps surprend : elle dit **ce 
 
 - **Rendez-vous** : quoi, jour, heure, durée, trajet (facultatif), quand l'alerte de départ doit sonner (au moment de partir, ou 10 min, 30 min, 1 h avant), et un rappel en plus facultatif (2 h avant, le matin même à 8 h, la veille à 20 h). Deux alertes au maximum par rendez-vous.
 - **Prochain** : la carte du haut montre le prochain rendez-vous (ou celui en cours, « Encore 50 min »). Les suivants sont listés par jour ; les toucher montre Alerte, Modifier, Supprimer.
-- **Alerte au téléphone** : Adesso envoie le rendez-vous au petit script `serveur/ics.php` (à déposer sur alwaysdata, dans `adesso/`), qui renvoie aussitôt un événement de calendrier (.ics) avec ses alarmes ; sur iPhone, le Calendrier propose de l'ajouter d'un toucher. Le script ne garde rien, et l'envoi se fait en POST pour que rien n'apparaisse dans les journaux du serveur. Une connexion est nécessaire à ce moment-là seulement. C'est le Calendrier qui sonne, même Adesso fermée. Si un rendez-vous est modifié, refaire l'alerte.
+- **Alerte au téléphone** : Adesso fabrique sur le téléphone un événement de calendrier (.ics) avec ses alarmes, et le confie au téléphone : sur iPhone par la feuille de partage (choisir le Calendrier), ailleurs par un téléchargement. C'est le Calendrier qui sonne, même Adesso fermée. Rien ne passe par un serveur.
 - **Circonstances** (« + Une circonstance ») : une grève, une tempête… avec des dates et un temps en plus sur les trajets. Ces jours-là, l'heure de départ avance d'elle-même (la circonstance la plus longue compte, elles ne s'additionnent pas), un bandeau le rappelle en haut, et une alerte déjà ajoutée au téléphone est signalée « à refaire ».
+- **Trois boutons égaux** : « + Rendez-vous », « + À faire », « + Circonstance ».
 - **À faire** : une simple liste, sans échéance. Une tâche cochée disparaît le lendemain.
 - Les rendez-vous passés depuis plus de 30 jours s'effacent tout seuls.
 
 ## Données
 
-Tout reste sur le téléphone (stockage local, préfixe `adesso.`). Pas de compte, et un seul appel extérieur : le script de l'alerte, au moment où on l'ajoute (les polices sont hébergées avec l'appli). Sur iPhone, l'appli installée a son propre stockage : la **sauvegarde** (fichier JSON) sert à changer de téléphone ou à réinstaller.
+Tout reste sur le téléphone (stockage local, préfixe `adesso.`). Pas de serveur, pas de compte, aucun appel extérieur (les polices sont hébergées avec l'appli). Sur iPhone, l'appli installée a son propre stockage : la **sauvegarde** (fichier JSON) sert à changer de téléphone ou à réinstaller.
 
 ## Fichiers
 

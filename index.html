@@ -82,8 +82,10 @@
   .tache .nom { color: var(--bleu); font-weight: 700; }
   .tache.faite .nom { color: var(--doux); font-weight: 400; text-decoration: line-through; }
   .tache .suppr { background: none; border: none; color: var(--doux); font-size: 20px; min-width: 40px; min-height: 40px; }
-  .ajout-tache { display: flex; gap: 8px; padding: 8px 0 6px; }
-  .ajout-tache input { flex: 1; min-width: 0; }
+  /* Trois boutons d'égale importance : ce qu'on peut ajouter */
+  .trois { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .btn.ajout { min-height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 4px; font-size: 15px; line-height: 1.15; }
+  .btn.ajout .plus { font-family: 'Fraunces', Georgia, serif; font-size: 26px; line-height: 1; }
 
   .formulaire { display: flex; flex-direction: column; gap: 12px; background: var(--sable); border-radius: 14px; padding: 14px; }
   label.champ { display: flex; flex-direction: column; gap: 6px; font-weight: 700; min-width: 0; }
@@ -114,7 +116,7 @@
 <script>
 (() => {
   'use strict';
-  const VERSION = '1.2';
+  const VERSION = '1.3';
   const P = 'adesso.';
   const NB = '\u202f';   // espace fine insécable : « 30 min » ne se coupe jamais
 
@@ -167,10 +169,8 @@
   const triRdv = (a, b) => (a.date + hhmm(a.heure)).localeCompare(b.date + hhmm(b.heure));
 
   /* ---------- L'alerte : un événement pour l'agenda du téléphone, qui sonnera ----------
-     L'iPhone refuse d'ouvrir un événement fabriqué par l'appli elle-même. On envoie donc le rendez-vous
-     au petit script ics.php (sur alwaysdata), qui renvoie aussitôt l'événement : le Calendrier propose « Ajouter ».
-     Rien n'est gardé sur le serveur ; l'envoi se fait en POST, donc rien n'apparaît dans ses journaux. */
-  const ADRESSE_ICS = 'https://azertida.alwaysdata.net/adesso/ics.php';
+     Tout se fait sur le téléphone, sans serveur : Adesso fabrique un fichier d'événement (.ics) avec ses alarmes,
+     puis le confie au téléphone (feuille de partage sur iPhone, téléchargement ailleurs). */
   // Le rappel en plus, pour se préparer : deux alertes au maximum par rendez-vous.
   const RAPPELS = [['', 'Aucun'], ['2h', '2 h avant'], ['matin', 'Le matin même, à 8 h'], ['veille', 'La veille au soir, à 20 h']];
   function minutesRappel(r) {           // combien de minutes avant le début du rendez-vous
@@ -193,13 +193,31 @@
       msg2: rappel ? `${r.rappel === 'veille' ? 'Demain' : 'Aujourd’hui'} à ${heure(r.heure)} : ${r.titre}` : '',
     };
   }
-  function ajouterAlerte(r) {
-    if (!navigator.onLine) return dire('Il faut une connexion pour ajouter l’alerte');
-    const f = document.createElement('form'); f.method = 'POST'; f.action = ADRESSE_ICS; f.style.display = 'none';
-    for (const [k, v] of Object.entries(champsAlerte(r))) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); }
+  function icsDe(r) {
+    const c = champsAlerte(r);
+    const txt = (v) => String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, ' ');
+    const u = new Date(); const stamp = `${u.getUTCFullYear()}${pad(u.getUTCMonth() + 1)}${pad(u.getUTCDate())}T${pad(u.getUTCHours())}${pad(u.getUTCMinutes())}00Z`;
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Adesso//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+      `UID:${c.uid}@adesso`, `DTSTAMP:${stamp}`, `DTSTART:${c.debut}`, `DTEND:${c.fin}`, `SUMMARY:${txt(c.titre)}`,
+      c.desc ? `DESCRIPTION:${txt(c.desc)}` : null,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(c.msg1)}`, `TRIGGER:-PT${c.alerte1}M`, 'END:VALARM',
+      ...(c.alerte2 ? ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(c.msg2)}`, `TRIGGER:-PT${c.alerte2}M`, 'END:VALARM'] : []),
+      'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n') + '\r\n';
+  }
+  async function ajouterAlerte(r) {
+    const nom = `${r.titre.replace(/[^\p{L}\p{N} -]/gu, '').trim().slice(0, 40) || 'rendez-vous'}.ics`;
+    const fichier = new File([icsDe(r)], nom, { type: 'text/calendar' });
     r.alerte = minuteAlerte(r); tout();
-    document.body.appendChild(f); f.submit(); f.remove();
-    setTimeout(afficher, 800);
+    // iPhone : la feuille de partage, d'où le Calendrier peut prendre l'événement.
+    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      try { await navigator.share({ files: [fichier], title: r.titre }); afficher(); return; }
+      catch (e) { if (e && e.name === 'AbortError') { delete r.alerte; tout(); afficher(); return; } }
+    }
+    // Ailleurs (ou si le partage n'est pas possible) : un téléchargement, qu'on ouvre ensuite.
+    const url = URL.createObjectURL(fichier);
+    const a = document.createElement('a'); a.href = url; a.download = nom;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+    afficher();
   }
 
   /* ---------- État de l'écran ---------- */
@@ -282,9 +300,18 @@
       </div>` : '';
 
     // Formulaire de rendez-vous
-    const e = edition && edition.type !== 'circ' ? edition : null;
-    const form = ec ? formCirc : !e ? `<button class="btn plein" id="nouveau">+ Rendez-vous</button>
-        <button class="lien" id="nouvelleCirc" style="align-self:center;margin-top:-8px">+ Une circonstance (grève, tempête…)</button>` : `<div class="formulaire" id="form">
+    const e = edition && edition.type !== 'circ' && edition.type !== 'tache' ? edition : null;
+    const et = edition?.type === 'tache' ? edition : null;
+    const formTache = et ? `<div class="formulaire" id="formTache">
+        <strong>Une chose à faire</strong>
+        <label class="champ">Quoi <input type="text" id="titreTache" maxlength="80" value="${esc(et.titre)}" placeholder="Rappeler la banque, acheter du pain…"></label>
+        <div class="rangee"><button class="btn plein" id="enregTache">Ajouter</button><button class="btn" id="annulerTache">Annuler</button></div>
+      </div>` : '';
+    const trois = `<div class="trois">
+        <button class="btn ajout" id="nouveau"><span class="plus">+</span>Rendez-vous</button>
+        <button class="btn ajout" id="nouvelleTache"><span class="plus">+</span>À faire</button>
+        <button class="btn ajout" id="nouvelleCirc"><span class="plus">+</span>Circonstance</button></div>`;
+    const form = ec ? formCirc : et ? formTache : !e ? trois : `<div class="formulaire" id="form">
         <strong>${e.id ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous'}</strong>
         <label class="champ">Quoi <input type="text" id="titre" maxlength="60" value="${esc(e.titre)}" placeholder="Dentiste, café avec Marie…"></label>
         <div class="deux"><label class="champ">Jour ${boite('date', 'date', e.date)}</label><label class="champ">Heure ${boite('heure', 'time', hhmm(e.heure))}</label></div>
@@ -297,13 +324,12 @@
 
     // À faire : une liste simple, sans échéance
     const lesTaches = [...taches].sort((a, b) => !!a.faite - !!b.faite);
-    const blocTaches = `<div class="carte"><h3>À faire</h3>
+    const blocTaches = !taches.length ? '' : `<div class="carte"><h3>À faire</h3>
       ${lesTaches.map((t) => `<div class="tache${t.faite ? ' faite' : ''}"><button class="case" data-cocher="${t.id}" aria-pressed="${!!t.faite}" aria-label="${t.faite ? 'Faite' : 'À faire'} : ${esc(t.titre)}">${t.faite ? '✓' : ''}</button>
-        <span class="nom">${esc(t.titre)}</span><button class="suppr" data-supprtache="${t.id}" aria-label="Retirer ${esc(t.titre)}">×</button></div>`).join('')}
-      <div class="ajout-tache"><input type="text" id="nouvelleTache" maxlength="80" placeholder="Une chose à ne pas oublier…"><button class="btn" id="ajouterTache">Ajouter</button></div></div>`;
+        <span class="nom">${esc(t.titre)}</span><button class="suppr" data-supprtache="${t.id}" aria-label="Retirer ${esc(t.titre)}">×</button></div>`).join('')}</div>`;
 
     const aide = !aideOuverte ? `<button class="lien" id="aide" style="align-self:center">Comment l’alerte fait sonner l’iPhone ?</button>` : `<div class="aide"><strong>L’alerte au téléphone</strong>
-      <ol><li>Touche «${NB}Ajouter une alerte au téléphone${NB}».</li><li>L’iPhone propose d’ajouter le rendez-vous à son Calendrier : touche «${NB}Ajouter${NB}».</li>
+      <ol><li>Touche «${NB}Ajouter une alerte au téléphone${NB}».</li><li>L’iPhone ouvre sa feuille de partage : choisis le Calendrier, puis touche «${NB}Ajouter${NB}».</li>
       <li>Au moment de partir, le Calendrier fait sonner une alerte, même si Adesso est fermée. Si tu as choisi un rappel en plus, il sonne aussi, plus tôt, pour te préparer.</li></ol>
       <p>Le son se règle dans Réglages › Sons et vibrations › Alertes de calendrier. En mode silencieux, l’iPhone vibre seulement.</p>
       <button class="lien" id="aide" style="align-self:flex-start">Replier</button></div>`;
@@ -338,9 +364,15 @@
     });
     q('[data-cocher]').forEach((b) => b.onclick = () => { const t = taches.find((x) => x.id === b.dataset.cocher); if (!t) return; t.faite = t.faite ? null : aujourdhui(); tout(); afficher(); });
     q('[data-supprtache]').forEach((b) => b.onclick = () => { taches = taches.filter((x) => x.id !== b.dataset.supprtache); tout(); afficher(); });
-    const at = document.getElementById('ajouterTache'), it = document.getElementById('nouvelleTache');
-    const ajoutT = () => { const v = it.value.trim(); if (!v) return; taches.push({ id: nid(), titre: v, faite: null }); tout(); afficher(); document.getElementById('nouvelleTache').focus(); };
-    at.onclick = ajoutT; it.onkeydown = (ev) => { if (ev.key === 'Enter') ajoutT(); };
+    const nt = document.getElementById('nouvelleTache');
+    if (nt) nt.onclick = () => { edition = { type: 'tache', titre: '' }; afficher(); document.getElementById('titreTache').focus(); };
+    if (edition?.type === 'tache') {
+      const it = document.getElementById('titreTache');
+      it.addEventListener('input', () => { edition.titre = it.value; });
+      const ajoutT = () => { const v = it.value.trim(); if (!v) return dire('Dis en un mot de quoi il s’agit'); taches.push({ id: nid(), titre: v, faite: null }); edition = null; tout(); afficher(); dire('Ajouté à «${NB}À faire${NB}»'); };
+      document.getElementById('enregTache').onclick = ajoutT; it.onkeydown = (ev) => { if (ev.key === 'Enter') ajoutT(); };
+      document.getElementById('annulerTache').onclick = () => { edition = null; afficher(); };
+    }
     document.getElementById('aide').onclick = () => { aideOuverte = !aideOuverte; afficher(); };
 
     q('[data-modcirc]').forEach((b) => b.onclick = () => { edition = { type: 'circ', ...circonstances.find((c) => c.id === b.dataset.modcirc) }; ouvertId = null; afficher(); document.getElementById('formCirc').scrollIntoView({ block: 'center' }); });
@@ -375,7 +407,7 @@
       edition = { id: null, titre: '', date: aujourdhui(), heure: h, duree: 60, trajet: 0, avance: 0, rappel: '' }; afficher();
       document.getElementById('form').scrollIntoView({ block: 'center' }); document.getElementById('titre').focus();
     };
-    if (edition && edition.type !== 'circ') {
+    if (edition && edition.type !== 'circ' && edition.type !== 'tache') {
       const e = edition, f = document.getElementById('form');
       // Ce qui est tapé est gardé au fur et à mesure : un redessin ne l'efface jamais.
       const garder = () => { e.titre = document.getElementById('titre').value; e.date = document.getElementById('date').value || e.date;
@@ -430,7 +462,7 @@
   document.addEventListener('change', (e) => { if (e.target.closest('.boite')) majBoites(); });
 
   // Le temps passe : on redessine toutes les 30 secondes et au retour sur l'appli, sauf pendant une saisie.
-  const peutRedessiner = () => !edition && !(document.activeElement && document.activeElement.id === 'nouvelleTache');
+  const peutRedessiner = () => !edition;
   setInterval(() => { if (peutRedessiner() && !document.hidden) afficher(); }, 30000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && peutRedessiner()) afficher(); });
 
