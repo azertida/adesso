@@ -1,5 +1,7 @@
 # Adesso
 
+Un agenda pour les distrait-es.
+
 *Adesso* : « maintenant », en italien.
 
 Une appli toute simple pour les personnes que le temps surprend : elle dit **ce qui vient, et quand partir**.
