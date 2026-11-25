@@ -53,7 +53,6 @@
   .prochain.partir { border: 3px solid var(--foret); background: var(--foret); color: #FBF5EA; }
   .prochain.partir .etiquette, .prochain.partir .detail { color: #DCE8D6; }
   .prochain.partir .grand { color: #FBF5EA; white-space: normal; font-size: 36px; display: flex; align-items: center; gap: 12px; }
-  .prochain.partir .btn.alerte { background: #FBF5EA; border-color: #FBF5EA; color: var(--foret); }
   .prochain.partir .grand svg { flex: none; }
   .prochain.encours { border: 3px solid var(--bleu-clair); }
   .prochain.encours .grand { color: var(--bleu); font-size: 34px; }
@@ -62,7 +61,7 @@
 
   .btn { min-height: 50px; border-radius: 12px; border: 1.5px solid var(--bord-fort); background: var(--carte); color: var(--encre); font-weight: 700; font-size: 17px; padding: 0 16px; }
   .btn.plein { background: var(--foret); border-color: var(--foret); color: #fff; }
-  .btn.alerte { background: var(--bleu); border-color: var(--bleu); color: #fff; }
+  .penser { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--bord-fort); font-size: 16px; color: var(--doux); }
   .btn.danger { color: var(--rouge); }
   .btn.petit { min-height: 40px; font-size: 15px; padding: 0 12px; }
   .rangee { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -105,8 +104,6 @@
   .circ .txt { background: none; border: none; text-align: left; padding: 8px 0; cursor: pointer; }
   .circ .txt small { display: block; font-size: 15px; color: var(--doux); }
   .circ .actions { display: flex; gap: 8px; margin-bottom: 8px; }
-  .aide { background: var(--sable); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
-  .aide ol { margin: 0; padding-left: 22px; }
   .pied { text-align: center; color: var(--doux); font-size: 14px; margin-top: 8px; }
   .message { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--encre); color: #fff;
              padding: 12px 18px; border-radius: 14px; max-width: 90vw; font-size: 16px; z-index: 10; }
@@ -119,14 +116,14 @@
 <script>
 (() => {
   'use strict';
-  const VERSION = '1.4';
+  const VERSION = '1.5';
   const P = 'adesso.';
   const NB = '\u202f';   // espace fine insécable : « 30 min » ne se coupe jamais
 
   /* ---------- Stockage (tout reste sur ce téléphone) ---------- */
   const lire = (k, d) => { try { const v = localStorage.getItem(P + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const ecrire = (k, v) => { try { localStorage.setItem(P + k, JSON.stringify(v)); } catch {} };
-  let rdv = lire('rdv', []);        // { id, titre, date, heure (minutes), duree, trajet, avance (minutes avant le départ), rappel ('', '2h', 'matin', 'veille') }
+  let rdv = lire('rdv', []);        // { id, titre, date, heure (minutes), duree, trajet }
   let taches = lire('taches', []);  // { id, titre, faite (date où elle a été cochée, ou null) }
   let circonstances = lire('circonstances', []); // ce qui allonge les trajets certains jours : { id, titre, du, au, plus (minutes) }
   const tout = () => { ecrire('rdv', rdv); ecrire('taches', taches); ecrire('circonstances', circonstances); };
@@ -167,72 +164,17 @@
   const plusDu = (date) => Math.max(0, ...circDu(date).map((c) => c.plus || 0));
   const tr = (r) => (r.trajet ? r.trajet + plusDu(r.date) : 0);
   const depart = (r) => new Date(debut(r).getTime() - tr(r) * 60e3);
-  const minuteAlerte = (r) => r.heure - tr(r) - (r.avance || 0);   // pour savoir si une alerte déjà ajoutée est encore juste
   const mentionPlus = (r) => { const c = circDu(r.date).filter((x) => x.plus).sort((a, b) => b.plus - a.plus)[0]; return r.trajet && c ? ` (${esc(c.titre.toLowerCase())}${NB}: +${duree(c.plus)})` : ''; };
   const triRdv = (a, b) => (a.date + hhmm(a.heure)).localeCompare(b.date + hhmm(b.heure));
-
-  /* ---------- L'alerte : un événement pour l'agenda du téléphone, qui sonnera ----------
-     Tout se fait sur le téléphone, sans serveur : Adesso fabrique un fichier d'événement (.ics) avec ses alarmes,
-     puis le confie au téléphone (feuille de partage sur iPhone, téléchargement ailleurs). */
-  // Le rappel en plus, pour se préparer : deux alertes au maximum par rendez-vous.
-  const RAPPELS = [['', 'Aucun'], ['2h', '2 h avant'], ['matin', 'Le matin même, à 8 h'], ['veille', 'La veille au soir, à 20 h']];
-  function minutesRappel(r) {           // combien de minutes avant le début du rendez-vous
-    if (r.rappel === '2h') return 120 + tr(r);
-    if (r.rappel === 'matin') return r.heure - 8 * 60;
-    if (r.rappel === 'veille') return r.heure + 24 * 60 - 20 * 60;
-    return 0;
-  }
-  function champsAlerte(r) {
-    const z = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-    const avant = tr(r) + (r.avance || 0);
-    const m2 = minutesRappel(r);
-    const rappel = r.rappel && m2 > avant;   // un rappel qui tomberait après le départ ne sert à rien
-    return {
-      uid: r.id, debut: z(debut(r)), fin: z(fin(r)), titre: r.titre,
-      desc: r.trajet ? `Trajet : ${duree(tr(r))}. Pars à ${heure(r.heure - tr(r))}.` : '',
-      alerte1: String(avant),
-      msg1: r.avance ? `Dans ${duree(r.avance)}, ${r.trajet ? 'pars pour' : 'c’est'} : ${r.titre}` : r.trajet ? `C’est l’heure de partir : ${r.titre}` : `C’est l’heure : ${r.titre}`,
-      alerte2: rappel ? String(m2) : '',
-      msg2: rappel ? `${r.rappel === 'veille' ? 'Demain' : 'Aujourd’hui'} à ${heure(r.heure)} : ${r.titre}` : '',
-    };
-  }
-  function icsDe(r) {
-    const c = champsAlerte(r);
-    const txt = (v) => String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, ' ');
-    const u = new Date(); const stamp = `${u.getUTCFullYear()}${pad(u.getUTCMonth() + 1)}${pad(u.getUTCDate())}T${pad(u.getUTCHours())}${pad(u.getUTCMinutes())}00Z`;
-    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Adesso//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
-      `UID:${c.uid}@adesso`, `DTSTAMP:${stamp}`, `DTSTART:${c.debut}`, `DTEND:${c.fin}`, `SUMMARY:${txt(c.titre)}`,
-      c.desc ? `DESCRIPTION:${txt(c.desc)}` : null,
-      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(c.msg1)}`, `TRIGGER:-PT${c.alerte1}M`, 'END:VALARM',
-      ...(c.alerte2 ? ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(c.msg2)}`, `TRIGGER:-PT${c.alerte2}M`, 'END:VALARM'] : []),
-      'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n') + '\r\n';
-  }
-  async function ajouterAlerte(r) {
-    const nom = `${r.titre.replace(/[^\p{L}\p{N} -]/gu, '').trim().slice(0, 40) || 'rendez-vous'}.ics`;
-    const fichier = new File([icsDe(r)], nom, { type: 'text/calendar' });
-    r.alerte = minuteAlerte(r); tout();
-    // iPhone : la feuille de partage, d'où le Calendrier peut prendre l'événement.
-    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-      try { await navigator.share({ files: [fichier], title: r.titre }); afficher(); return; }
-      catch (e) { if (e && e.name === 'AbortError') { delete r.alerte; tout(); afficher(); return; } }
-    }
-    // Ailleurs (ou si le partage n'est pas possible) : un téléchargement, qu'on ouvre ensuite.
-    const url = URL.createObjectURL(fichier);
-    const a = document.createElement('a'); a.href = url; a.download = nom;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
-    afficher();
-  }
 
   /* ---------- État de l'écran ---------- */
   let edition = null;     // rendez-vous en cours d'édition
   let ouvertId = null;    // rendez-vous dont on montre les actions
-  let aideOuverte = false;
   const boite = (id, type, val) => `<span class="boite"><span class="valeur"></span><input type="${type}" id="${id}" value="${val}"></span>`;
   const options = (liste, val) => liste.map(([v, t]) => `<option value="${v}" ${Number(v) === Number(val) ? 'selected' : ''}>${t}</option>`).join('');
   const DUREES = [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [180, '3 h'], [240, '4 h']];
   const TRAJETS = [[0, 'Aucun, j’y suis déjà'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30']];
   const PLUS = [[0, 'Aucun'], [10, '+10 min'], [15, '+15 min'], [20, '+20 min'], [30, '+30 min'], [45, '+45 min'], [60, '+1 h']];
-  const AVANCES = [[0, 'Au moment de partir'], [10, '10 min avant'], [30, '30 min avant'], [60, '1 h avant']];
 
   function afficher() {
     const maintenant = new Date(), auj = aujourdhui();
@@ -247,16 +189,14 @@
     } else {
       const d = debut(p), dep = depart(p);
       const quand = p.date === auj ? `à ${heure(p.heure)}` : `${nomJour(p.date).toLowerCase()} à ${heure(p.heure)}`;
-      const aRefaire = p.alerte !== undefined && p.alerte !== minuteAlerte(p);
-      const alerte = aRefaire ? `<button class="btn alerte" data-alerte="${p.id}">Refaire l’alerte : le départ a changé</button>`
-        : p.alerte !== undefined ? `<button class="lien" data-alerte="${p.id}" style="align-self:flex-start">Alerte ajoutée · la refaire</button>`
-        : `<button class="btn alerte" data-alerte="${p.id}">Ajouter une alerte au téléphone</button>`;
+      // Adesso ne fait pas sonner le téléphone : il rappelle l'heure à mettre dans le Calendrier.
+      const alerte = `<div class="penser">Pense à l’alerte dans ton Calendrier${NB}: ${tr(p) ? 'départ' : 'rendez-vous'} à ${heure(tr(p) ? p.heure - tr(p) : p.heure)}</div>`;
       if (d <= maintenant) {
         prochain = `<div class="prochain encours"><div class="etiquette">En cours</div><div class="titre">${esc(p.titre)}</div>
           <div class="avant">Encore</div><div class="grand">${duree(Math.ceil((fin(p) - maintenant) / 60e3))}</div><div class="detail">jusqu’à ${heure(p.heure + (p.duree || 60))}</div></div>`;
       } else if (tr(p) && dep <= maintenant) {
         prochain = `<div class="prochain partir"><div class="etiquette">Prochain</div><div class="titre">${esc(p.titre)}</div>
-          <div class="grand"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M10 21l2-6 2 2v4"/><path d="M12 15l1-6 3 3h3"/><path d="M13 9l-3 1-2 3"/></svg>C’est l’heure de partir</div><div class="detail">Rendez-vous ${quand}, dans ${duree(Math.ceil((d - maintenant) / 60e3))} · trajet ${duree(tr(p))}${mentionPlus(p)}</div>${alerte}</div>`;
+          <div class="grand"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M10 21l2-6 2 2v4"/><path d="M12 15l1-6 3 3h3"/><path d="M13 9l-3 1-2 3"/></svg>C’est l’heure de partir</div><div class="detail">Rendez-vous ${quand}, dans ${duree(Math.ceil((d - maintenant) / 60e3))} · trajet ${duree(tr(p))}${mentionPlus(p)}</div></div>`;
       } else {
         const cible = tr(p) ? dep : d;
         const reste = duree(Math.ceil((cible - maintenant) / 60e3));
@@ -274,8 +214,8 @@
       for (const r of suite) {
         if (r.date !== jour) { if (jour) h += '</div>'; jour = r.date; h += `<div class="carte"><h3>${nomJour(r.date)}</h3>`; }
         const ouvert = ouvertId === r.id;
-        h += `<div class="ligne"><div class="h">${heure(r.heure)}</div><div><button class="txt" data-ouvrir="${r.id}" aria-expanded="${ouvert}"><b>${esc(r.titre)}</b>${r.trajet ? `<small>pars à ${heure(r.heure - tr(r))}${mentionPlus(r)}${r.alerte !== undefined && r.alerte !== minuteAlerte(r) ? ' · alerte à refaire' : ''}</small>` : ''}</button>
-          ${ouvert ? `<div class="actions"><button class="btn petit" data-alerte="${r.id}">Alerte au téléphone</button><button class="btn petit" data-modif="${r.id}">Modifier</button><button class="btn petit danger" data-suppr="${r.id}">Supprimer</button></div>` : ''}</div></div>`;
+        h += `<div class="ligne"><div class="h">${heure(r.heure)}</div><div><button class="txt" data-ouvrir="${r.id}" aria-expanded="${ouvert}"><b>${esc(r.titre)}</b>${r.trajet ? `<small>pars à ${heure(r.heure - tr(r))}${mentionPlus(r)}</small>` : ''}</button>
+          ${ouvert ? `<div class="actions"><button class="btn petit" data-modif="${r.id}">Modifier</button><button class="btn petit danger" data-suppr="${r.id}">Supprimer</button></div>` : ''}</div></div>`;
       }
       ensuite = h + '</div>';
     }
@@ -319,8 +259,6 @@
         <label class="champ">Quoi <input type="text" id="titre" maxlength="60" value="${esc(e.titre)}" placeholder="Dentiste, café avec Marie…"></label>
         <div class="deux"><label class="champ">Jour ${boite('date', 'date', e.date)}</label><label class="champ">Heure ${boite('heure', 'time', hhmm(e.heure))}</label></div>
         <div class="deux"><label class="champ">Durée <select id="duree">${options(DUREES, e.duree)}</select></label><label class="champ">Trajet <select id="trajet">${options(TRAJETS, e.trajet)}</select></label></div>
-        <label class="champ">Alerte de départ <select id="avance">${options(AVANCES, e.avance)}</select></label>
-        <label class="champ">Rappel en plus, pour te préparer <select id="rappel">${RAPPELS.map(([v, t]) => `<option value="${v}" ${v === (e.rappel || '') ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <div class="rangee"><button class="btn plein" id="enreg">${e.id ? 'Enregistrer' : 'Ajouter'}</button><button class="btn" id="annuler">Annuler</button></div>
         ${e.id ? '<button class="btn danger" id="supprForm">Supprimer ce rendez-vous</button>' : ''}
       </div>`;
@@ -331,11 +269,6 @@
       ${lesTaches.map((t) => `<div class="tache${t.faite ? ' faite' : ''}"><button class="case" data-cocher="${t.id}" aria-pressed="${!!t.faite}" aria-label="${t.faite ? 'Faite' : 'À faire'} : ${esc(t.titre)}">${t.faite ? '✓' : ''}</button>
         <span class="nom">${esc(t.titre)}</span><button class="suppr" data-supprtache="${t.id}" aria-label="Retirer ${esc(t.titre)}">×</button></div>`).join('')}</div>`;
 
-    const aide = !aideOuverte ? `<button class="lien" id="aide" style="align-self:center">Comment l’alerte fait sonner l’iPhone ?</button>` : `<div class="aide"><strong>L’alerte au téléphone</strong>
-      <ol><li>Touche «${NB}Ajouter une alerte au téléphone${NB}».</li><li>L’iPhone ouvre sa feuille de partage : choisis le Calendrier, puis touche «${NB}Ajouter${NB}».</li>
-      <li>Au moment de partir, le Calendrier fait sonner une alerte, même si Adesso est fermée. Si tu as choisi un rappel en plus, il sonne aussi, plus tôt, pour te préparer.</li></ol>
-      <p>Le son se règle dans Réglages › Sons et vibrations › Alertes de calendrier. En mode silencieux, l’iPhone vibre seulement.</p>
-      <button class="lien" id="aide" style="align-self:flex-start">Replier</button></div>`;
 
     $app.innerHTML = `
       <div class="entete"><h1>Adesso</h1><div class="sous">${dateLongue(auj)} · ${heure(maintenant.getHours() * 60 + maintenant.getMinutes())}</div></div>
@@ -346,7 +279,6 @@
         ${form}
         ${ensuite}
         ${blocTaches}
-        ${aide}
         <div class="rangee"><button class="btn petit" id="exp">Enregistrer une sauvegarde</button><button class="btn petit" id="imp">Restaurer</button></div>
         <input type="file" id="fichier" accept="application/json,.json" hidden>
         <p class="pied">Adesso · version ${VERSION}</p>
@@ -357,7 +289,6 @@
 
   function brancher() {
     const q = (s) => $app.querySelectorAll(s);
-    q('[data-alerte]').forEach((b) => b.onclick = () => { const r = rdv.find((x) => x.id === b.dataset.alerte); if (r) ajouterAlerte(r); });
     q('[data-ouvrir]').forEach((b) => b.onclick = () => { ouvertId = ouvertId === b.dataset.ouvrir ? null : b.dataset.ouvrir; afficher(); });
     q('[data-modif]').forEach((b) => b.onclick = () => { edition = { ...rdv.find((x) => x.id === b.dataset.modif) }; ouvertId = null; afficher(); document.getElementById('form').scrollIntoView({ block: 'center' }); });
     q('[data-suppr]').forEach((b) => b.onclick = () => {
@@ -372,11 +303,10 @@
     if (edition?.type === 'tache') {
       const it = document.getElementById('titreTache');
       it.addEventListener('input', () => { edition.titre = it.value; });
-      const ajoutT = () => { const v = it.value.trim(); if (!v) return dire('Dis en un mot de quoi il s’agit'); taches.push({ id: nid(), titre: v, faite: null }); edition = null; tout(); afficher(); dire('Ajouté à «${NB}À faire${NB}»'); };
+      const ajoutT = () => { const v = it.value.trim(); if (!v) return dire('Dis en un mot de quoi il s’agit'); taches.push({ id: nid(), titre: v, faite: null }); edition = null; tout(); afficher(); dire(`Ajouté à «${NB}À faire${NB}»`); };
       document.getElementById('enregTache').onclick = ajoutT; it.onkeydown = (ev) => { if (ev.key === 'Enter') ajoutT(); };
       document.getElementById('annulerTache').onclick = () => { edition = null; afficher(); };
     }
-    document.getElementById('aide').onclick = () => { aideOuverte = !aideOuverte; afficher(); };
 
     q('[data-modcirc]').forEach((b) => b.onclick = () => { edition = { type: 'circ', ...circonstances.find((c) => c.id === b.dataset.modcirc) }; ouvertId = null; afficher(); document.getElementById('formCirc').scrollIntoView({ block: 'center' }); });
     q('[data-supprcirc]').forEach((b) => b.onclick = () => {
@@ -399,15 +329,14 @@
         const au = c.au && c.au >= c.du ? c.au : c.du;
         const v = { titre, du: c.du, au, plus: c.plus };
         if (c.id) Object.assign(circonstances.find((x) => x.id === c.id), v); else circonstances.push({ id: nid(), ...v });
-        const touches = rdv.some((r) => r.alerte !== undefined && r.alerte !== minuteAlerte(r));
         edition = null; tout(); afficher(); window.scrollTo(0, 0);
-        dire(touches ? 'Circonstance notée · des alertes sont à refaire' : 'Circonstance notée');
+        dire('Circonstance notée · si une alerte est déjà dans ton Calendrier, avance-la');
       };
     }
     const nv = document.getElementById('nouveau');
     if (nv) nv.onclick = () => {
       const m = new Date(), mn = m.getHours() * 60 + m.getMinutes(), h = Math.min(23 * 60, Math.ceil((mn + 31) / 30) * 30);
-      edition = { id: null, titre: '', date: aujourdhui(), heure: h, duree: 60, trajet: 0, avance: 0, rappel: '' }; afficher();
+      edition = { id: null, titre: '', date: aujourdhui(), heure: h, duree: 60, trajet: 0 }; afficher();
       document.getElementById('form').scrollIntoView({ block: 'center' }); document.getElementById('titre').focus();
     };
     if (edition && edition.type !== 'circ' && edition.type !== 'tache') {
@@ -415,7 +344,7 @@
       // Ce qui est tapé est gardé au fur et à mesure : un redessin ne l'efface jamais.
       const garder = () => { e.titre = document.getElementById('titre').value; e.date = document.getElementById('date').value || e.date;
         const h = document.getElementById('heure').value; if (h) e.heure = minutes(h);
-        e.duree = Number(document.getElementById('duree').value); e.trajet = Number(document.getElementById('trajet').value); e.avance = Number(document.getElementById('avance').value); e.rappel = document.getElementById('rappel').value; };
+        e.duree = Number(document.getElementById('duree').value); e.trajet = Number(document.getElementById('trajet').value); };
       f.addEventListener('input', garder); f.addEventListener('change', garder);
       document.getElementById('annuler').onclick = () => { edition = null; afficher(); };
       const sf = document.getElementById('supprForm');
@@ -425,11 +354,11 @@
         const titre = e.titre.trim();
         if (!titre) return dire('Dis en un mot de quoi il s’agit');
         if (!e.date) return dire('Choisis le jour');
-        const v = { titre, date: e.date, heure: e.heure, duree: e.duree, trajet: e.trajet, avance: e.avance, rappel: e.rappel || '' };
+        const v = { titre, date: e.date, heure: e.heure, duree: e.duree, trajet: e.trajet };
         let id = e.id;
         if (id) Object.assign(rdv.find((x) => x.id === id), v); else { id = nid(); rdv.push({ id, ...v }); }
         edition = null; tout(); afficher(); window.scrollTo(0, 0);
-        dire(e.id ? 'Rendez-vous modifié · pense à refaire l’alerte' : 'Rendez-vous ajouté · ajoute l’alerte au téléphone');
+        dire(e.id ? 'Rendez-vous modifié' : 'Rendez-vous ajouté');
       };
     }
 
