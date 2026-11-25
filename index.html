@@ -114,7 +114,7 @@
 <script>
 (() => {
   'use strict';
-  const VERSION = '1.1';
+  const VERSION = '1.2';
   const P = 'adesso.';
   const NB = '\u202f';   // espace fine insécable : « 30 min » ne se coupe jamais
 
@@ -166,21 +166,11 @@
   const mentionPlus = (r) => { const c = circDu(r.date).filter((x) => x.plus).sort((a, b) => b.plus - a.plus)[0]; return r.trajet && c ? ` (${esc(c.titre.toLowerCase())}${NB}: +${duree(c.plus)})` : ''; };
   const triRdv = (a, b) => (a.date + hhmm(a.heure)).localeCompare(b.date + hhmm(b.heure));
 
-  /* ---------- L'alerte : un événement pour l'agenda du téléphone, qui sonnera ---------- */
-  function icsDe(r) {
-    const z = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-    const u = new Date(); const stamp = `${u.getUTCFullYear()}${pad(u.getUTCMonth() + 1)}${pad(u.getUTCDate())}T${pad(u.getUTCHours())}${pad(u.getUTCMinutes())}00Z`;
-    const txt = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
-    const avant = tr(r) + (r.avance || 0);
-    const message = r.avance ? `Dans ${duree(r.avance)}, ${r.trajet ? 'pars pour' : 'c’est'} : ${r.titre}` : r.trajet ? `C’est l’heure de partir : ${r.titre}` : `C’est l’heure : ${r.titre}`;
-    const desc = r.trajet ? `Trajet : ${duree(tr(r))}. Pars à ${heure(r.heure - tr(r))}.` : '';
-    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Adesso//FR', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
-      `UID:${r.id}@adesso`, `DTSTAMP:${stamp}`, `DTSTART:${z(debut(r))}`, `DTEND:${z(fin(r))}`, `SUMMARY:${txt(r.titre)}`,
-      desc ? `DESCRIPTION:${txt(desc)}` : null,
-      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(message)}`, `TRIGGER:-PT${avant}M`, 'END:VALARM',
-      ...rappelIcs(r, txt),
-      'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
-  }
+  /* ---------- L'alerte : un événement pour l'agenda du téléphone, qui sonnera ----------
+     L'iPhone refuse d'ouvrir un événement fabriqué par l'appli elle-même. On envoie donc le rendez-vous
+     au petit script ics.php (sur alwaysdata), qui renvoie aussitôt l'événement : le Calendrier propose « Ajouter ».
+     Rien n'est gardé sur le serveur ; l'envoi se fait en POST, donc rien n'apparaît dans ses journaux. */
+  const ADRESSE_ICS = 'https://azertida.alwaysdata.net/adesso/ics.php';
   // Le rappel en plus, pour se préparer : deux alertes au maximum par rendez-vous.
   const RAPPELS = [['', 'Aucun'], ['2h', '2 h avant'], ['matin', 'Le matin même, à 8 h'], ['veille', 'La veille au soir, à 20 h']];
   function minutesRappel(r) {           // combien de minutes avant le début du rendez-vous
@@ -189,20 +179,27 @@
     if (r.rappel === 'veille') return r.heure + 24 * 60 - 20 * 60;
     return 0;
   }
-  function rappelIcs(r, txt) {
-    const m = minutesRappel(r), depart = tr(r) + (r.avance || 0);
-    if (!r.rappel || m <= depart) return [];   // un rappel qui tomberait après le départ ne sert à rien
-    const quand = r.rappel === 'veille' ? 'Demain' : 'Aujourd’hui';
-    return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(`${quand} à ${heure(r.heure)} : ${r.titre}`)}`, `TRIGGER:-PT${m}M`, 'END:VALARM'];
+  function champsAlerte(r) {
+    const z = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const avant = tr(r) + (r.avance || 0);
+    const m2 = minutesRappel(r);
+    const rappel = r.rappel && m2 > avant;   // un rappel qui tomberait après le départ ne sert à rien
+    return {
+      uid: r.id, debut: z(debut(r)), fin: z(fin(r)), titre: r.titre,
+      desc: r.trajet ? `Trajet : ${duree(tr(r))}. Pars à ${heure(r.heure - tr(r))}.` : '',
+      alerte1: String(avant),
+      msg1: r.avance ? `Dans ${duree(r.avance)}, ${r.trajet ? 'pars pour' : 'c’est'} : ${r.titre}` : r.trajet ? `C’est l’heure de partir : ${r.titre}` : `C’est l’heure : ${r.titre}`,
+      alerte2: rappel ? String(m2) : '',
+      msg2: rappel ? `${r.rappel === 'veille' ? 'Demain' : 'Aujourd’hui'} à ${heure(r.heure)} : ${r.titre}` : '',
+    };
   }
   function ajouterAlerte(r) {
-    const ics = icsDe(r);
-    r.alerte = minuteAlerte(r); tout(); setTimeout(afficher, 800);
-    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (iphone) { window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics); return; }
-    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
-    const a = document.createElement('a'); a.href = url; a.download = `${r.titre.replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 40) || 'rendez-vous'}.ics`;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+    if (!navigator.onLine) return dire('Il faut une connexion pour ajouter l’alerte');
+    const f = document.createElement('form'); f.method = 'POST'; f.action = ADRESSE_ICS; f.style.display = 'none';
+    for (const [k, v] of Object.entries(champsAlerte(r))) { const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = v; f.appendChild(i); }
+    r.alerte = minuteAlerte(r); tout();
+    document.body.appendChild(f); f.submit(); f.remove();
+    setTimeout(afficher, 800);
   }
 
   /* ---------- État de l'écran ---------- */
