@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Adesso</title>
+<meta name="description" content="Ce qui vient, et quand partir.">
+<meta name="theme-color" content="#FBF5EA">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icones/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Adesso">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  /* Polices hébergées avec l'appli : aucun appel à Google ni à un autre service */
+  @font-face { font-family: 'Fraunces'; font-weight: 600; font-display: swap; src: url('polices/fraunces-latin-600-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Fraunces'; font-weight: 700; font-display: swap; src: url('polices/fraunces-latin-700-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 400; font-display: swap; src: url('polices/atkinson-hyperlegible-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Atkinson Hyperlegible'; font-weight: 700; font-display: swap; src: url('polices/atkinson-hyperlegible-latin-700-normal.woff2') format('woff2'); }
+  :root {
+    --creme: #FBF5EA; --carte: #FFFDF8; --bord: #E8DCC4; --bord-fort: #D9CBB0;
+    --encre: #2B2118; --doux: #5E5040; --ocre: #8F5A1B; --bleu: #1F4E6B; --bleu-clair: #7AAAC9;
+    --sable: #F1E6D3; --rouge: #9B2C1F; --terre: #C0643A; --foret: #2F5E3A;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--creme); color: var(--encre); }
+  body { font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 17px; line-height: 1.4;
+         padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); -webkit-text-size-adjust: 100%; }
+  main { max-width: 520px; margin: 0 auto; padding: 0 16px 48px; }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; margin: 0; }
+  h1 { font-size: 34px; color: var(--terre); letter-spacing: -0.5px; line-height: 1.05; }
+  h2 { font-size: 22px; }
+  p { margin: 0; }
+  .doux { color: var(--doux); }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  .entete { padding: 18px 0 10px; }
+  .entete .sous { font-size: 16px; color: var(--doux); }
+  .pile { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Le prochain rendez-vous, en grand */
+  .prochain { background: var(--carte); border: 1.5px solid var(--bord-fort); border-radius: 20px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .prochain .etiquette { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--doux); }
+  .prochain .titre { font-family: 'Fraunces', Georgia, serif; font-size: 26px; font-weight: 700; line-height: 1.15; }
+  .prochain .grand { font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 700; color: var(--terre); line-height: 1.05; margin-top: 4px; }
+  .prochain .avant { font-size: 18px; font-weight: 700; color: var(--doux); margin-top: 6px; }
+  .prochain .grand { white-space: nowrap; }
+  .prochain .detail { font-size: 17px; color: var(--doux); }
+  /* L'heure de partir : vert forêt, un encouragement plutôt qu'une alarme */
+  .prochain.partir { border: 3px solid var(--foret); background: #E6EFE6; }
+  .prochain.partir .grand { color: var(--foret); white-space: normal; font-size: 36px; display: flex; align-items: center; gap: 12px; }
+  .prochain.partir .grand svg { flex: none; }
+  .prochain.encours { border: 3px solid var(--bleu-clair); }
+  .prochain.encours .grand { color: var(--bleu); font-size: 34px; }
+  .prochain.rien .grand { color: var(--bleu); font-size: 30px; white-space: normal; }
+  .prochain .btn { margin-top: 10px; }
+
+  .btn { min-height: 50px; border-radius: 12px; border: 1.5px solid var(--bord-fort); background: var(--carte); color: var(--encre); font-weight: 700; font-size: 17px; padding: 0 16px; }
+  .btn.plein { background: var(--terre); border-color: var(--terre); color: #fff; }
+  .btn.alerte { background: var(--bleu); border-color: var(--bleu); color: #fff; }
+  .btn.danger { color: var(--rouge); }
+  .btn.petit { min-height: 40px; font-size: 15px; padding: 0 12px; }
+  .rangee { display: flex; gap: 10px; flex-wrap: wrap; }
+  .rangee .btn { flex: 1 1 140px; }
+  .lien { background: none; border: none; color: var(--ocre); font-weight: 700; min-height: 44px; padding: 0 6px; }
+
+  .carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 16px; padding: 8px 14px; }
+  .carte h3 { font-size: 13px; font-family: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--doux); padding: 8px 0 4px; }
+  .ligne { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--bord); }
+  .ligne:first-of-type { border-top: none; }
+  .ligne .h { font-weight: 700; color: var(--doux); text-align: right; font-size: 15px; padding-top: 2px; }
+  .ligne button.txt { background: none; border: none; padding: 0; text-align: left; cursor: pointer; }
+  .ligne .txt small { display: block; font-size: 14px; color: var(--doux); }
+  .ligne .actions { grid-column: 2; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+  .tache { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--bord); }
+  .tache:first-of-type { border-top: none; }
+  .tache .case { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--bleu); background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; }
+  .tache.faite .case { background: var(--bleu); }
+  .tache .nom { color: var(--bleu); font-weight: 700; }
+  .tache.faite .nom { color: var(--doux); font-weight: 400; text-decoration: line-through; }
+  .tache .suppr { background: none; border: none; color: var(--doux); font-size: 20px; min-width: 40px; min-height: 40px; }
+  .ajout-tache { display: flex; gap: 8px; padding: 8px 0 6px; }
+  .ajout-tache input { flex: 1; min-width: 0; }
+
+  .formulaire { display: flex; flex-direction: column; gap: 12px; background: var(--sable); border-radius: 14px; padding: 14px; }
+  label.champ { display: flex; flex-direction: column; gap: 6px; font-weight: 700; min-width: 0; }
+  .deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  input[type=text], select { min-height: 50px; padding: 0 14px; border-radius: 12px; border: 1.5px solid var(--bord-fort); background: var(--carte); font-size: 18px; font-weight: 400; width: 100%; }
+  /* Safari iOS : champs date et heure enfermés dans un cadre ; le vrai champ est invisible par-dessus. */
+  .boite { position: relative; display: flex; align-items: center; width: 100%; min-height: 50px; padding: 0 14px; border-radius: 12px;
+           border: 1.5px solid var(--bord-fort); background: var(--carte); overflow: hidden; font-size: 18px; font-weight: 400; }
+  .boite .valeur { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .boite input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: none; opacity: 0; -webkit-appearance: none; appearance: none; font-size: 16px; }
+  input:focus-visible, select:focus-visible, button:focus-visible, .boite:focus-within { outline: 3px solid #E8A23A; outline-offset: 2px; }
+
+  .circ { background: var(--sable); border-radius: 14px; padding: 4px 14px; display: flex; flex-direction: column; }
+  .circ .txt { background: none; border: none; text-align: left; padding: 8px 0; cursor: pointer; }
+  .circ .txt small { display: block; font-size: 15px; color: var(--doux); }
+  .circ .actions { display: flex; gap: 8px; margin-bottom: 8px; }
+  .aide { background: var(--sable); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
+  .aide ol { margin: 0; padding-left: 22px; }
+  .pied { text-align: center; color: var(--doux); font-size: 14px; margin-top: 8px; }
+  .message { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--encre); color: #fff;
+             padding: 12px 18px; border-radius: 14px; max-width: 90vw; font-size: 16px; z-index: 10; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="message" id="message" role="status" hidden></div>
+<script>
+(() => {
+  'use strict';
+  const VERSION = '1.1';
+  const P = 'adesso.';
+  const NB = '\u202f';   // espace fine insécable : « 30 min » ne se coupe jamais
+
+  /* ---------- Stockage (tout reste sur ce téléphone) ---------- */
+  const lire = (k, d) => { try { const v = localStorage.getItem(P + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+  const ecrire = (k, v) => { try { localStorage.setItem(P + k, JSON.stringify(v)); } catch {} };
+  let rdv = lire('rdv', []);        // { id, titre, date, heure (minutes), duree, trajet, avance (minutes avant le départ), rappel ('', '2h', 'matin', 'veille') }
+  let taches = lire('taches', []);  // { id, titre, faite (date où elle a été cochée, ou null) }
+  let circonstances = lire('circonstances', []); // ce qui allonge les trajets certains jours : { id, titre, du, au, plus (minutes) }
+  const tout = () => { ecrire('rdv', rdv); ecrire('taches', taches); ecrire('circonstances', circonstances); };
+
+  /* ---------- Outils ---------- */
+  const $app = document.getElementById('app');
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const nid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const pad = (n) => String(n).padStart(2, '0');
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const versDate = (s, m = 0) => { const [a, mo, j] = s.split('-').map(Number); return new Date(a, mo - 1, j, Math.floor(m / 60), m % 60); };
+  const aujourdhui = () => iso(new Date());
+  const plusJours = (s, n) => { const d = versDate(s); d.setDate(d.getDate() + n); return iso(d); };
+  const heure = (m) => { m = ((m % 1440) + 1440) % 1440; return `${Math.floor(m / 60)}${NB}h${m % 60 ? NB + pad(m % 60) : ''}`; };
+  const hhmm = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+  const minutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const premier = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const dateLongue = (s) => premier(new Intl.DateTimeFormat('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(versDate(s))).replace(/ 1 /, ' 1er ');
+  const nomJour = (s) => { const auj = aujourdhui(); return s === auj ? 'Aujourd’hui' : s === plusJours(auj, 1) ? 'Demain' : dateLongue(s); };
+  // Une durée dite comme on la dit : « 1 h 20 », « 45 min », « 2 jours ».
+  const duree = (min) => {
+    if (min < 1) return 'moins d’une minute';
+    if (min < 60) return `${min}${NB}min`;
+    if (min < 48 * 60) { const h = Math.floor(min / 60), r = min % 60; return `${h}${NB}h${r ? NB + pad(r) : ''}`; }
+    const j = Math.round(min / 1440); return `${j}${NB}jours`;
+  };
+  let minuterie;
+  function dire(t) { const m = document.getElementById('message'); m.textContent = t; m.hidden = false; clearTimeout(minuterie); minuterie = setTimeout(() => { m.hidden = true; }, 3200); }
+
+  // Ce qui est passé depuis plus de 30 jours s'efface ; une tâche cochée disparaît le lendemain.
+  (() => { const lim = plusJours(aujourdhui(), -30), auj = aujourdhui();
+    rdv = rdv.filter((r) => r.date >= lim); circonstances = circonstances.filter((c) => c.au >= lim); taches = taches.filter((t) => !t.faite || t.faite >= auj); tout(); })();
+
+  const debut = (r) => versDate(r.date, r.heure);
+  const fin = (r) => new Date(debut(r).getTime() + (r.duree || 60) * 60e3);
+  // Les circonstances du jour (grève, tempête…) allongent le trajet ; la plus longue compte, elles ne s'additionnent pas.
+  const circDu = (date) => circonstances.filter((c) => c.du <= date && date <= c.au);
+  const plusDu = (date) => Math.max(0, ...circDu(date).map((c) => c.plus || 0));
+  const tr = (r) => (r.trajet ? r.trajet + plusDu(r.date) : 0);
+  const depart = (r) => new Date(debut(r).getTime() - tr(r) * 60e3);
+  const minuteAlerte = (r) => r.heure - tr(r) - (r.avance || 0);   // pour savoir si une alerte déjà ajoutée est encore juste
+  const mentionPlus = (r) => { const c = circDu(r.date).filter((x) => x.plus).sort((a, b) => b.plus - a.plus)[0]; return r.trajet && c ? ` (${esc(c.titre.toLowerCase())}${NB}: +${duree(c.plus)})` : ''; };
+  const triRdv = (a, b) => (a.date + hhmm(a.heure)).localeCompare(b.date + hhmm(b.heure));
+
+  /* ---------- L'alerte : un événement pour l'agenda du téléphone, qui sonnera ---------- */
+  function icsDe(r) {
+    const z = (d) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const u = new Date(); const stamp = `${u.getUTCFullYear()}${pad(u.getUTCMonth() + 1)}${pad(u.getUTCDate())}T${pad(u.getUTCHours())}${pad(u.getUTCMinutes())}00Z`;
+    const txt = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    const avant = tr(r) + (r.avance || 0);
+    const message = r.avance ? `Dans ${duree(r.avance)}, ${r.trajet ? 'pars pour' : 'c’est'} : ${r.titre}` : r.trajet ? `C’est l’heure de partir : ${r.titre}` : `C’est l’heure : ${r.titre}`;
+    const desc = r.trajet ? `Trajet : ${duree(tr(r))}. Pars à ${heure(r.heure - tr(r))}.` : '';
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Adesso//FR', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+      `UID:${r.id}@adesso`, `DTSTAMP:${stamp}`, `DTSTART:${z(debut(r))}`, `DTEND:${z(fin(r))}`, `SUMMARY:${txt(r.titre)}`,
+      desc ? `DESCRIPTION:${txt(desc)}` : null,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(message)}`, `TRIGGER:-PT${avant}M`, 'END:VALARM',
+      ...rappelIcs(r, txt),
+      'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
+  }
+  // Le rappel en plus, pour se préparer : deux alertes au maximum par rendez-vous.
+  const RAPPELS = [['', 'Aucun'], ['2h', '2 h avant'], ['matin', 'Le matin même, à 8 h'], ['veille', 'La veille au soir, à 20 h']];
+  function minutesRappel(r) {           // combien de minutes avant le début du rendez-vous
+    if (r.rappel === '2h') return 120 + tr(r);
+    if (r.rappel === 'matin') return r.heure - 8 * 60;
+    if (r.rappel === 'veille') return r.heure + 24 * 60 - 20 * 60;
+    return 0;
+  }
+  function rappelIcs(r, txt) {
+    const m = minutesRappel(r), depart = tr(r) + (r.avance || 0);
+    if (!r.rappel || m <= depart) return [];   // un rappel qui tomberait après le départ ne sert à rien
+    const quand = r.rappel === 'veille' ? 'Demain' : 'Aujourd’hui';
+    return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${txt(`${quand} à ${heure(r.heure)} : ${r.titre}`)}`, `TRIGGER:-PT${m}M`, 'END:VALARM'];
+  }
+  function ajouterAlerte(r) {
+    const ics = icsDe(r);
+    r.alerte = minuteAlerte(r); tout(); setTimeout(afficher, 800);
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (iphone) { window.location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics); return; }
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const a = document.createElement('a'); a.href = url; a.download = `${r.titre.replace(/[^\p{L}\p{N} -]/gu, '').slice(0, 40) || 'rendez-vous'}.ics`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  /* ---------- État de l'écran ---------- */
+  let edition = null;     // rendez-vous en cours d'édition
+  let ouvertId = null;    // rendez-vous dont on montre les actions
+  let aideOuverte = false;
+  const boite = (id, type, val) => `<span class="boite"><span class="valeur"></span><input type="${type}" id="${id}" value="${val}"></span>`;
+  const options = (liste, val) => liste.map(([v, t]) => `<option value="${v}" ${Number(v) === Number(val) ? 'selected' : ''}>${t}</option>`).join('');
+  const DUREES = [[15, '15 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30'], [120, '2 h'], [180, '3 h'], [240, '4 h']];
+  const TRAJETS = [[0, 'Aucun, j’y suis déjà'], [5, '5 min'], [10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min'], [45, '45 min'], [60, '1 h'], [90, '1 h 30']];
+  const PLUS = [[0, 'Aucun'], [10, '+10 min'], [15, '+15 min'], [20, '+20 min'], [30, '+30 min'], [45, '+45 min'], [60, '+1 h']];
+  const AVANCES = [[0, 'Au moment de partir'], [10, '10 min avant'], [30, '30 min avant'], [60, '1 h avant']];
+
+  function afficher() {
+    const maintenant = new Date(), auj = aujourdhui();
+    const avenir = rdv.filter((r) => fin(r) > maintenant).sort(triRdv);
+    const p = avenir[0];
+
+    // Le prochain rendez-vous, en grand
+    let prochain;
+    if (!p) {
+      prochain = `<div class="prochain rien"><div class="etiquette">Maintenant</div><div class="grand">Rien de prévu</div>
+        <div class="detail">Ajoute ton prochain rendez-vous, Adesso te dira quand partir.</div></div>`;
+    } else {
+      const d = debut(p), dep = depart(p);
+      const quand = p.date === auj ? `à ${heure(p.heure)}` : `${nomJour(p.date).toLowerCase()} à ${heure(p.heure)}`;
+      const aRefaire = p.alerte !== undefined && p.alerte !== minuteAlerte(p);
+      const alerte = aRefaire ? `<button class="btn alerte" data-alerte="${p.id}">Refaire l’alerte : le départ a changé</button>`
+        : p.alerte !== undefined ? `<button class="lien" data-alerte="${p.id}" style="align-self:flex-start">Alerte ajoutée · la refaire</button>`
+        : `<button class="btn alerte" data-alerte="${p.id}">Ajouter une alerte au téléphone</button>`;
+      if (d <= maintenant) {
+        prochain = `<div class="prochain encours"><div class="etiquette">En cours</div><div class="titre">${esc(p.titre)}</div>
+          <div class="avant">Encore</div><div class="grand">${duree(Math.ceil((fin(p) - maintenant) / 60e3))}</div><div class="detail">jusqu’à ${heure(p.heure + (p.duree || 60))}</div></div>`;
+      } else if (tr(p) && dep <= maintenant) {
+        prochain = `<div class="prochain partir"><div class="etiquette">Prochain</div><div class="titre">${esc(p.titre)}</div>
+          <div class="grand"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M10 21l2-6 2 2v4"/><path d="M12 15l1-6 3 3h3"/><path d="M13 9l-3 1-2 3"/></svg>C’est l’heure de partir</div><div class="detail">Rendez-vous ${quand}, dans ${duree(Math.ceil((d - maintenant) / 60e3))} · trajet ${duree(tr(p))}${mentionPlus(p)}</div>${alerte}</div>`;
+      } else {
+        const cible = tr(p) ? dep : d;
+        const reste = duree(Math.ceil((cible - maintenant) / 60e3));
+        prochain = `<div class="prochain"><div class="etiquette">Prochain</div><div class="titre">${esc(p.titre)}</div>
+          <div class="avant">${tr(p) ? 'Pars dans' : 'Dans'}</div><div class="grand">${reste}</div>
+          <div class="detail">${tr(p) ? `Pars à ${heure(p.heure - tr(p))}${mentionPlus(p)} · rendez-vous ${quand}` : `Rendez-vous ${quand}`}</div>${alerte}</div>`;
+      }
+    }
+
+    // Ensuite : les rendez-vous suivants, par jour
+    const suite = avenir.slice(1);
+    let ensuite = '';
+    if (suite.length) {
+      let jour = null, h = '';
+      for (const r of suite) {
+        if (r.date !== jour) { if (jour) h += '</div>'; jour = r.date; h += `<div class="carte"><h3>${nomJour(r.date)}</h3>`; }
+        const ouvert = ouvertId === r.id;
+        h += `<div class="ligne"><div class="h">${heure(r.heure)}</div><div><button class="txt" data-ouvrir="${r.id}" aria-expanded="${ouvert}"><b>${esc(r.titre)}</b>${r.trajet ? `<small>pars à ${heure(r.heure - tr(r))}${mentionPlus(r)}${r.alerte !== undefined && r.alerte !== minuteAlerte(r) ? ' · alerte à refaire' : ''}</small>` : ''}</button>
+          ${ouvert ? `<div class="actions"><button class="btn petit" data-alerte="${r.id}">Alerte au téléphone</button><button class="btn petit" data-modif="${r.id}">Modifier</button><button class="btn petit danger" data-suppr="${r.id}">Supprimer</button></div>` : ''}</div></div>`;
+      }
+      ensuite = h + '</div>';
+    }
+    // Le prochain aussi se modifie : lien discret sous sa carte
+    const modifProchain = p && !edition ? `<button class="lien" data-modif="${p.id}" style="align-self:flex-end;margin-top:-8px">Modifier ce rendez-vous</button>` : '';
+
+    // Circonstances : un bandeau par circonstance d'aujourd'hui ou à venir dans la semaine
+    const fenetre = plusJours(auj, 7);
+    const lesCirc = circonstances.filter((c) => c.au >= auj && c.du <= fenetre).sort((a, b) => a.du.localeCompare(b.du));
+    const breve = (x) => new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' }).format(versDate(x));
+    const dates = (c) => c.du === c.au ? nomJour(c.du)
+      : c.du <= auj ? (c.au === plusJours(auj, 1) ? 'Jusqu’à demain' : `Jusqu’au ${breve(c.au)}`)
+      : `Du ${breve(c.du)} au ${breve(c.au)}`;
+    const bandeaux = lesCirc.map((c) => { const ouvert = ouvertId === 'c:' + c.id;
+      return `<div class="circ"><button class="txt" data-ouvrir="c:${c.id}" aria-expanded="${ouvert}"><b>${esc(c.titre)}</b>
+        <small>${dates(c)}${c.plus ? ` · trajets +${duree(c.plus)}` : ''}</small></button>
+        ${ouvert ? `<div class="actions"><button class="btn petit" data-modcirc="${c.id}">Modifier</button><button class="btn petit danger" data-supprcirc="${c.id}">Supprimer</button></div>` : ''}</div>`; }).join('');
+    const ec = edition?.type === 'circ' ? edition : null;
+    const formCirc = ec ? `<div class="formulaire" id="formCirc">
+        <strong>${ec.id ? 'Modifier la circonstance' : 'Nouvelle circonstance'}</strong>
+        <label class="champ">Quoi <input type="text" id="titreCirc" maxlength="60" value="${esc(ec.titre)}" placeholder="Grève des transports, tempête…"></label>
+        <div class="deux"><label class="champ">Du ${boite('duCirc', 'date', ec.du)}</label><label class="champ">Au ${boite('auCirc', 'date', ec.au)}</label></div>
+        <label class="champ">Temps en plus sur les trajets <select id="plusCirc">${options(PLUS, ec.plus)}</select></label>
+        <div class="rangee"><button class="btn plein" id="enregCirc">${ec.id ? 'Enregistrer' : 'Ajouter'}</button><button class="btn" id="annulerCirc">Annuler</button></div>
+      </div>` : '';
+
+    // Formulaire de rendez-vous
+    const e = edition && edition.type !== 'circ' ? edition : null;
+    const form = ec ? formCirc : !e ? `<button class="btn plein" id="nouveau">+ Rendez-vous</button>
+        <button class="lien" id="nouvelleCirc" style="align-self:center;margin-top:-8px">+ Une circonstance (grève, tempête…)</button>` : `<div class="formulaire" id="form">
+        <strong>${e.id ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous'}</strong>
+        <label class="champ">Quoi <input type="text" id="titre" maxlength="60" value="${esc(e.titre)}" placeholder="Dentiste, café avec Marie…"></label>
+        <div class="deux"><label class="champ">Jour ${boite('date', 'date', e.date)}</label><label class="champ">Heure ${boite('heure', 'time', hhmm(e.heure))}</label></div>
+        <div class="deux"><label class="champ">Durée <select id="duree">${options(DUREES, e.duree)}</select></label><label class="champ">Trajet <select id="trajet">${options(TRAJETS, e.trajet)}</select></label></div>
+        <label class="champ">Alerte de départ <select id="avance">${options(AVANCES, e.avance)}</select></label>
+        <label class="champ">Rappel en plus, pour te préparer <select id="rappel">${RAPPELS.map(([v, t]) => `<option value="${v}" ${v === (e.rappel || '') ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <div class="rangee"><button class="btn plein" id="enreg">${e.id ? 'Enregistrer' : 'Ajouter'}</button><button class="btn" id="annuler">Annuler</button></div>
+        ${e.id ? '<button class="btn danger" id="supprForm">Supprimer ce rendez-vous</button>' : ''}
+      </div>`;
+
+    // À faire : une liste simple, sans échéance
+    const lesTaches = [...taches].sort((a, b) => !!a.faite - !!b.faite);
+    const blocTaches = `<div class="carte"><h3>À faire</h3>
+      ${lesTaches.map((t) => `<div class="tache${t.faite ? ' faite' : ''}"><button class="case" data-cocher="${t.id}" aria-pressed="${!!t.faite}" aria-label="${t.faite ? 'Faite' : 'À faire'} : ${esc(t.titre)}">${t.faite ? '✓' : ''}</button>
+        <span class="nom">${esc(t.titre)}</span><button class="suppr" data-supprtache="${t.id}" aria-label="Retirer ${esc(t.titre)}">×</button></div>`).join('')}
+      <div class="ajout-tache"><input type="text" id="nouvelleTache" maxlength="80" placeholder="Une chose à ne pas oublier…"><button class="btn" id="ajouterTache">Ajouter</button></div></div>`;
+
+    const aide = !aideOuverte ? `<button class="lien" id="aide" style="align-self:center">Comment l’alerte fait sonner l’iPhone ?</button>` : `<div class="aide"><strong>L’alerte au téléphone</strong>
+      <ol><li>Touche «${NB}Ajouter une alerte au téléphone${NB}».</li><li>L’iPhone propose d’ajouter le rendez-vous à son Calendrier : touche «${NB}Ajouter${NB}».</li>
+      <li>Au moment de partir, le Calendrier fait sonner une alerte, même si Adesso est fermée. Si tu as choisi un rappel en plus, il sonne aussi, plus tôt, pour te préparer.</li></ol>
+      <p>Le son se règle dans Réglages › Sons et vibrations › Alertes de calendrier. En mode silencieux, l’iPhone vibre seulement.</p>
+      <button class="lien" id="aide" style="align-self:flex-start">Replier</button></div>`;
+
+    $app.innerHTML = `
+      <div class="entete"><h1>Adesso</h1><div class="sous">${dateLongue(auj)} · ${heure(maintenant.getHours() * 60 + maintenant.getMinutes())}</div></div>
+      <div class="pile">
+        ${bandeaux}
+        ${prochain}
+        ${modifProchain}
+        ${form}
+        ${ensuite}
+        ${blocTaches}
+        ${aide}
+        <div class="rangee"><button class="btn petit" id="exp">Enregistrer une sauvegarde</button><button class="btn petit" id="imp">Restaurer</button></div>
+        <input type="file" id="fichier" accept="application/json,.json" hidden>
+        <p class="pied">Adesso · version ${VERSION}</p>
+      </div>`;
+    brancher();
+    majBoites();
+  }
+
+  function brancher() {
+    const q = (s) => $app.querySelectorAll(s);
+    q('[data-alerte]').forEach((b) => b.onclick = () => { const r = rdv.find((x) => x.id === b.dataset.alerte); if (r) ajouterAlerte(r); });
+    q('[data-ouvrir]').forEach((b) => b.onclick = () => { ouvertId = ouvertId === b.dataset.ouvrir ? null : b.dataset.ouvrir; afficher(); });
+    q('[data-modif]').forEach((b) => b.onclick = () => { edition = { ...rdv.find((x) => x.id === b.dataset.modif) }; ouvertId = null; afficher(); document.getElementById('form').scrollIntoView({ block: 'center' }); });
+    q('[data-suppr]').forEach((b) => b.onclick = () => {
+      const r = rdv.find((x) => x.id === b.dataset.suppr);
+      if (!confirm(`Supprimer «${NB}${r?.titre || 'ce rendez-vous'}${NB}» ?`)) return;
+      rdv = rdv.filter((x) => x.id !== b.dataset.suppr); ouvertId = null; tout(); dire('Rendez-vous supprimé'); afficher();
+    });
+    q('[data-cocher]').forEach((b) => b.onclick = () => { const t = taches.find((x) => x.id === b.dataset.cocher); if (!t) return; t.faite = t.faite ? null : aujourdhui(); tout(); afficher(); });
+    q('[data-supprtache]').forEach((b) => b.onclick = () => { taches = taches.filter((x) => x.id !== b.dataset.supprtache); tout(); afficher(); });
+    const at = document.getElementById('ajouterTache'), it = document.getElementById('nouvelleTache');
+    const ajoutT = () => { const v = it.value.trim(); if (!v) return; taches.push({ id: nid(), titre: v, faite: null }); tout(); afficher(); document.getElementById('nouvelleTache').focus(); };
+    at.onclick = ajoutT; it.onkeydown = (ev) => { if (ev.key === 'Enter') ajoutT(); };
+    document.getElementById('aide').onclick = () => { aideOuverte = !aideOuverte; afficher(); };
+
+    q('[data-modcirc]').forEach((b) => b.onclick = () => { edition = { type: 'circ', ...circonstances.find((c) => c.id === b.dataset.modcirc) }; ouvertId = null; afficher(); document.getElementById('formCirc').scrollIntoView({ block: 'center' }); });
+    q('[data-supprcirc]').forEach((b) => b.onclick = () => {
+      const c = circonstances.find((x) => x.id === b.dataset.supprcirc);
+      if (!confirm(`Supprimer «${NB}${c?.titre || 'cette circonstance'}${NB}» ?`)) return;
+      circonstances = circonstances.filter((x) => x.id !== b.dataset.supprcirc); ouvertId = null; tout(); dire('Circonstance supprimée'); afficher();
+    });
+    const nc = document.getElementById('nouvelleCirc');
+    if (nc) nc.onclick = () => { edition = { type: 'circ', id: null, titre: '', du: aujourdhui(), au: aujourdhui(), plus: 30 }; afficher(); document.getElementById('formCirc').scrollIntoView({ block: 'center' }); document.getElementById('titreCirc').focus(); };
+    if (edition?.type === 'circ') {
+      const c = edition, f = document.getElementById('formCirc');
+      const garder = () => { c.titre = document.getElementById('titreCirc').value; c.du = document.getElementById('duCirc').value || c.du; c.au = document.getElementById('auCirc').value || c.au; c.plus = Number(document.getElementById('plusCirc').value); };
+      f.addEventListener('input', garder); f.addEventListener('change', garder);
+      document.getElementById('annulerCirc').onclick = () => { edition = null; afficher(); };
+      document.getElementById('enregCirc').onclick = () => {
+        garder();
+        const titre = c.titre.trim();
+        if (!titre) return dire('Dis en un mot de quoi il s’agit');
+        if (!c.du) return dire('Choisis à partir de quel jour');
+        const au = c.au && c.au >= c.du ? c.au : c.du;
+        const v = { titre, du: c.du, au, plus: c.plus };
+        if (c.id) Object.assign(circonstances.find((x) => x.id === c.id), v); else circonstances.push({ id: nid(), ...v });
+        const touches = rdv.some((r) => r.alerte !== undefined && r.alerte !== minuteAlerte(r));
+        edition = null; tout(); afficher(); window.scrollTo(0, 0);
+        dire(touches ? 'Circonstance notée · des alertes sont à refaire' : 'Circonstance notée');
+      };
+    }
+    const nv = document.getElementById('nouveau');
+    if (nv) nv.onclick = () => {
+      const m = new Date(), mn = m.getHours() * 60 + m.getMinutes(), h = Math.min(23 * 60, Math.ceil((mn + 31) / 30) * 30);
+      edition = { id: null, titre: '', date: aujourdhui(), heure: h, duree: 60, trajet: 0, avance: 0, rappel: '' }; afficher();
+      document.getElementById('form').scrollIntoView({ block: 'center' }); document.getElementById('titre').focus();
+    };
+    if (edition && edition.type !== 'circ') {
+      const e = edition, f = document.getElementById('form');
+      // Ce qui est tapé est gardé au fur et à mesure : un redessin ne l'efface jamais.
+      const garder = () => { e.titre = document.getElementById('titre').value; e.date = document.getElementById('date').value || e.date;
+        const h = document.getElementById('heure').value; if (h) e.heure = minutes(h);
+        e.duree = Number(document.getElementById('duree').value); e.trajet = Number(document.getElementById('trajet').value); e.avance = Number(document.getElementById('avance').value); e.rappel = document.getElementById('rappel').value; };
+      f.addEventListener('input', garder); f.addEventListener('change', garder);
+      document.getElementById('annuler').onclick = () => { edition = null; afficher(); };
+      const sf = document.getElementById('supprForm');
+      if (sf) sf.onclick = () => { if (!confirm(`Supprimer «${NB}${e.titre}${NB}» ?`)) return; rdv = rdv.filter((x) => x.id !== e.id); edition = null; tout(); dire('Rendez-vous supprimé'); afficher(); };
+      document.getElementById('enreg').onclick = () => {
+        garder();
+        const titre = e.titre.trim();
+        if (!titre) return dire('Dis en un mot de quoi il s’agit');
+        if (!e.date) return dire('Choisis le jour');
+        const v = { titre, date: e.date, heure: e.heure, duree: e.duree, trajet: e.trajet, avance: e.avance, rappel: e.rappel || '' };
+        let id = e.id;
+        if (id) Object.assign(rdv.find((x) => x.id === id), v); else { id = nid(); rdv.push({ id, ...v }); }
+        edition = null; tout(); afficher(); window.scrollTo(0, 0);
+        dire(e.id ? 'Rendez-vous modifié · pense à refaire l’alerte' : 'Rendez-vous ajouté · ajoute l’alerte au téléphone');
+      };
+    }
+
+    document.getElementById('exp').onclick = () => {
+      const paquet = { app: 'adesso', format: 1, exporte: new Date().toISOString(), rdv, taches, circonstances };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(paquet, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = `adesso-${aujourdhui()}.json`; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000); dire('Sauvegarde enregistrée');
+    };
+    const fi = document.getElementById('fichier');
+    document.getElementById('imp').onclick = () => fi.click();
+    fi.onchange = () => {
+      const fic = fi.files && fi.files[0]; fi.value = ''; if (!fic) return;
+      const lecteur = new FileReader();
+      lecteur.onload = () => {
+        let p; try { p = JSON.parse(lecteur.result); } catch { return dire('Ce fichier n’est pas lisible'); }
+        if (!p || p.app !== 'adesso') return dire('Ce fichier n’est pas une sauvegarde d’Adesso');
+        if (!confirm('Remplacer tout ce qui est dans Adesso par cette sauvegarde ?')) return;
+        rdv = p.rdv || []; taches = p.taches || []; circonstances = p.circonstances || []; tout(); dire('Sauvegarde restaurée'); afficher();
+      };
+      lecteur.readAsText(fic);
+    };
+  }
+
+  function majBoites() {
+    document.querySelectorAll('.boite input').forEach((i) => {
+      const v = i.parentElement.querySelector('.valeur');
+      if (!i.value) { v.textContent = 'Choisir…'; return; }
+      v.textContent = i.type === 'date' ? premier(new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' }).format(versDate(i.value))) : heure(minutes(i.value));
+    });
+  }
+  document.addEventListener('input', (e) => { if (e.target.closest('.boite')) majBoites(); });
+  document.addEventListener('change', (e) => { if (e.target.closest('.boite')) majBoites(); });
+
+  // Le temps passe : on redessine toutes les 30 secondes et au retour sur l'appli, sauf pendant une saisie.
+  const peutRedessiner = () => !edition && !(document.activeElement && document.activeElement.id === 'nouvelleTache');
+  setInterval(() => { if (peutRedessiner() && !document.hidden) afficher(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && peutRedessiner()) afficher(); });
+
+  try { navigator.storage?.persist?.(); } catch {}
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => r.update()).catch(() => {});
+  afficher();
+})();
+</script>
+</body>
+</html>
