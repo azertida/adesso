@@ -21,7 +21,7 @@
   :root {
     --creme: #FBF5EA; --carte: #FFFDF8; --bord: #E8DCC4; --bord-fort: #D9CBB0;
     --encre: #2B2118; --doux: #5E5040; --ocre: #8F5A1B; --bleu: #1F4E6B; --bleu-clair: #7AAAC9;
-    --sable: #F1E6D3; --rouge: #9B2C1F; --terre: #C0643A; --foret: #2F5E3A;
+    --sable: #F1E6D3; --rouge: #9B2C1F; --foret: #2F5E3A; --mousse: #4E7D3A; --feuille: #E3EDDD;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--creme); color: var(--encre); }
@@ -29,7 +29,7 @@
          padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); -webkit-text-size-adjust: 100%; }
   main { max-width: 520px; margin: 0 auto; padding: 0 16px 48px; }
   h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; margin: 0; }
-  h1 { font-size: 34px; color: var(--terre); letter-spacing: -0.5px; line-height: 1.05; }
+  h1 { font-size: 34px; color: var(--foret); letter-spacing: -0.5px; line-height: 1.05; }
   h2 { font-size: 22px; }
   p { margin: 0; }
   .doux { color: var(--doux); }
@@ -44,13 +44,16 @@
   .prochain { background: var(--carte); border: 1.5px solid var(--bord-fort); border-radius: 20px; padding: 18px 18px 16px; display: flex; flex-direction: column; gap: 6px; }
   .prochain .etiquette { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--doux); }
   .prochain .titre { font-family: 'Fraunces', Georgia, serif; font-size: 26px; font-weight: 700; line-height: 1.15; }
-  .prochain .grand { font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 700; color: var(--terre); line-height: 1.05; margin-top: 4px; }
+  .prochain .grand { font-family: 'Fraunces', Georgia, serif; font-size: 46px; font-weight: 700; color: var(--mousse); line-height: 1.05; margin-top: 4px; }
   .prochain .avant { font-size: 18px; font-weight: 700; color: var(--doux); margin-top: 6px; }
   .prochain .grand { white-space: nowrap; }
   .prochain .detail { font-size: 17px; color: var(--doux); }
   /* L'heure de partir : vert forêt, un encouragement plutôt qu'une alarme */
-  .prochain.partir { border: 3px solid var(--foret); background: #E6EFE6; }
-  .prochain.partir .grand { color: var(--foret); white-space: normal; font-size: 36px; display: flex; align-items: center; gap: 12px; }
+  /* L'heure de partir : la carte se remplit de vert forêt, impossible de la manquer */
+  .prochain.partir { border: 3px solid var(--foret); background: var(--foret); color: #FBF5EA; }
+  .prochain.partir .etiquette, .prochain.partir .detail { color: #DCE8D6; }
+  .prochain.partir .grand { color: #FBF5EA; white-space: normal; font-size: 36px; display: flex; align-items: center; gap: 12px; }
+  .prochain.partir .btn.alerte { background: #FBF5EA; border-color: #FBF5EA; color: var(--foret); }
   .prochain.partir .grand svg { flex: none; }
   .prochain.encours { border: 3px solid var(--bleu-clair); }
   .prochain.encours .grand { color: var(--bleu); font-size: 34px; }
@@ -58,7 +61,7 @@
   .prochain .btn { margin-top: 10px; }
 
   .btn { min-height: 50px; border-radius: 12px; border: 1.5px solid var(--bord-fort); background: var(--carte); color: var(--encre); font-weight: 700; font-size: 17px; padding: 0 16px; }
-  .btn.plein { background: var(--terre); border-color: var(--terre); color: #fff; }
+  .btn.plein { background: var(--foret); border-color: var(--foret); color: #fff; }
   .btn.alerte { background: var(--bleu); border-color: var(--bleu); color: #fff; }
   .btn.danger { color: var(--rouge); }
   .btn.petit { min-height: 40px; font-size: 15px; padding: 0 12px; }
@@ -116,7 +119,7 @@
 <script>
 (() => {
   'use strict';
-  const VERSION = '1.3';
+  const VERSION = '1.4';
   const P = 'adesso.';
   const NB = '\u202f';   // espace fine insécable : « 30 min » ne se coupe jamais
 
